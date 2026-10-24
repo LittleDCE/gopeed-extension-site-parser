@@ -2,8 +2,8 @@
   "name": "site-file-parser",
   "author": "your-name",
   "title": "网站直链提取",
-  "description": "只提取网页中暴露的直链下载文件，不深挖，极速返回",
-  "version": "6.0.0",
+  "description": "提取网页中的下载链接，支持后缀过滤开关",
+  "version": "7.0.0",
   "homepage": "https://github.com/你的用户名/你的仓库名",
   "repository": {
     "url": "https://github.com/你的用户名/你的仓库名"
@@ -19,18 +19,25 @@
   ],
   "settings": [
     {
+      "name": "filterByExt",
+      "title": "开启后缀过滤 (根据后缀下载)",
+      "description": "开启：只提取目标后缀的文件。关闭：全量抓取网页中的所有同源链接和文件。",
+      "type": "boolean",
+      "value": true
+    },
+    {
       "name": "targetExts",
       "title": "目标文件后缀",
-      "description": "只提取这些后缀的文件，逗号分隔。一旦找到立刻返回。",
+      "description": "只提取这些后缀的文件，逗号分隔。仅在“开启后缀过滤”时生效。",
       "type": "string",
       "value": "zip,rar,7z,pdf,mp4,mkv,apk,exe,iso"
     },
     {
       "name": "useWebView",
-      "title": "使用真实浏览器捕获（强力）",
-      "description": "如果普通模式抓不到，开启此选项可绕过基础防爬。",
+      "title": "使用真实浏览器捕获 (如果手机支持)",
+      "description": "如果你的手机 Gopeed 版本支持 WebView，开启此选项可绕过基础防爬。不支持会自动降级。",
       "type": "boolean",
-      "value": true
+      "value": false
     }
   ]
 }
