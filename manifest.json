@@ -2,8 +2,8 @@
   "name": "site-file-parser",
   "author": "your-name",
   "title": "网站文件深度解析",
-  "description": "自动解析网页及其内部引用的所有静态资源，达到上限自动停止",
-  "version": "4.0.0",
+  "description": "模拟真实浏览器解析网页及资源",
+  "version": "5.0.0",
   "homepage": "https://github.com/你的用户名/你的仓库名",
   "repository": {
     "url": "https://github.com/你的用户名/你的仓库名"
@@ -21,21 +21,21 @@
     {
       "name": "maxTotalFiles",
       "title": "最大解析文件数量",
-      "description": "这是总数限制。找够这么多文件就自动停止，防止手机卡死。建议填 50-200。",
+      "description": "找够这么多文件就自动停止，防止手机卡死。建议填 50-200。",
       "type": "number",
       "value": 100
     },
     {
       "name": "pageExts",
       "title": "表层解析（网页后缀）",
-      "description": "用英文逗号分隔。这些后缀会被当作网页，提取里面的 href/src。",
+      "description": "用英文逗号分隔。这些后缀会使用 WebView 渲染加载。",
       "type": "string",
       "value": "html,htm,php,asp,aspx,jsp,do,action"
     },
     {
       "name": "targetExts",
       "title": "深层解析（文件后缀）",
-      "description": "用英文逗号分隔。这些会被当文件，并读取 css/js/json 等找内部资源。",
+      "description": "用英文逗号分隔。会使用 fetch 读取内部资源。",
       "type": "string",
       "value": "css,js,json,xml,vue,png,jpg,jpeg,gif,svg,webp,mp4,mp3,zip,pdf"
     },
