@@ -5,7 +5,7 @@
   "description": "自动解析网页、子页面以及CSS/JS中嵌套引用的所有静态资源",
   "version": "3.1.0",
   "homepage": "https://github.com/LittleDCE/gopeed-extension-site-parser",
-  "repository": "https://github.com/LittleDCE/gopeed-extension-site-parser",
+  "repository": {"url":"https://github.com/LittleDCE/gopeed-extension-site-parser"},
   "scripts": [
     {
       "event": "onResolve",
