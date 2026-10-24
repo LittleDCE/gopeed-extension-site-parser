@@ -1,37 +1,55 @@
-"settings": [
-  {
-    "name": "maxParseDepth",
-    "title": "最大嵌套解析深度",
-    "description": "0=只看当前页；1=看子页面/内部引用的第一层；建议填 1 或 2。填 100 必超时！",
-    "type": "number",
-    "value": 2
-  },
-  {
-    "name": "maxRequests",
-    "title": "最大网络请求次数",
-    "description": "防止手机卡死。建议 50-200。",
-    "type": "number",
-    "value": 100
-  },
-  {
-    "name": "pageExts",
-    "title": "表层解析（网页后缀）",
-    "description": "用逗号分隔。这些后缀会被当作网页，提取里面的 href/src。",
-    "type": "string",
-    "value": "html,htm,php,asp,aspx,jsp,do,action"
-  },
-  {
-    "name": "targetExts",
-    "title": "深层解析（文件后缀）",
-    "description": "用逗号分隔。这些会被当文件，如果开启深层，会读取 css/js/json 等找内部资源。",
-    "type": "string",
-    "value": "css,js,json,xml,vue,png,jpg,jpeg,gif,svg,webp,mp4,mp3"
-  },
-  {
-    "name": "parseNested",
-    "title": "开启深层解析 (读取文件内部)",
-    "description": "开启后，会深入 CSS/JS 等文件内部继续找链接。",
-    "type": "boolean",
-    "value": true
-  }
-]
+{
+  "name": "site-file-parser",
+  "author": "your-name",
+  "title": "网站文件深度解析",
+  "description": "自动解析网页、子页面以及CSS/JS中嵌套引用的所有静态资源",
+  "version": "3.1.0",
+  "homepage": "https://github.com/LittleDCE/gopeed-extension-site-parser",
+  "repository": "https://github.com/LittleDCE/gopeed-extension-site-parser",
+  "scripts": [
+    {
+      "event": "onResolve",
+      "match": {
+        "urls": ["*://*/*"]
+      },
+      "entry": "index.js"
+    }
+  ],
+  "settings": [
+    {
+      "name": "maxParseDepth",
+      "title": "最大嵌套解析深度",
+      "description": "0=只看当前页；1=看子页面/内部引用的第一层；建议填 1 或 2。填 100 会超时！",
+      "type": "number",
+      "value": 2
+    },
+    {
+      "name": "maxRequests",
+      "title": "最大网络请求次数",
+      "description": "防止手机卡死，达到上限会自动停止并返回结果。建议 50-200。",
+      "type": "number",
+      "value": 100
+    },
+    {
+      "name": "pageExts",
+      "title": "表层解析（网页后缀）",
+      "description": "用英文逗号分隔。这些后缀会被当作网页，提取里面的 href/src。",
+      "type": "string",
+      "value": "html,htm,php,asp,aspx,jsp,do,action"
+    },
+    {
+      "name": "targetExts",
+      "title": "深层解析（文件后缀）",
+      "description": "用英文逗号分隔。这些会被当文件，如果开启深层，会读取 css/js/json 等找内部资源。",
+      "type": "string",
+      "value": "css,js,json,xml,vue,png,jpg,jpeg,gif,svg,webp,mp4,mp3"
+    },
+    {
+      "name": "parseNested",
+      "title": "开启深层解析",
+      "description": "开启后，会深入 CSS/JS 等文件内部继续找链接。",
+      "type": "boolean",
+      "value": true
+    }
+  ]
+}
