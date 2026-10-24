@@ -2,8 +2,8 @@
   "name": "site-file-parser",
   "author": "your-name",
   "title": "网站全量深度解析",
-  "description": "自动深层解析并提取网页资源，支持自定义文件数熔断与后缀过滤",
-  "version": "8.0.0",
+  "description": "自动深层解析并提取网页资源，支持自定义文件数熔断、后缀过滤与路径保留",
+  "version": "9.0.0",
   "homepage": "https://github.com/你的用户名/你的仓库名",
   "repository": {
     "url": "https://github.com/你的用户名/你的仓库名"
