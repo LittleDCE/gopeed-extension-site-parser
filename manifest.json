@@ -1,9 +1,9 @@
 {
   "name": "site-file-parser",
   "author": "your-name",
-  "title": "网站直链提取",
-  "description": "提取网页中的下载链接，支持后缀过滤开关",
-  "version": "7.0.0",
+  "title": "网站全量深度解析",
+  "description": "自动深层解析并提取网页资源，支持自定义文件数熔断与后缀过滤",
+  "version": "8.0.0",
   "homepage": "https://github.com/你的用户名/你的仓库名",
   "repository": {
     "url": "https://github.com/你的用户名/你的仓库名"
@@ -19,23 +19,37 @@
   ],
   "settings": [
     {
+      "name": "maxTotalFiles",
+      "title": "最大解析文件数量 (熔断上限)",
+      "description": "找够这么多文件就自动停止，防止手机卡死。建议填 100。",
+      "type": "number",
+      "value": 100
+    },
+    {
       "name": "filterByExt",
-      "title": "开启后缀过滤 (根据后缀下载)",
-      "description": "开启：只提取目标后缀的文件。关闭：全量抓取网页中的所有同源链接和文件。",
+      "title": "开启后缀过滤",
+      "description": "开启：只抓取目标后缀。关闭：遇到同源文件全量抓取。",
       "type": "boolean",
       "value": true
     },
     {
       "name": "targetExts",
       "title": "目标文件后缀",
-      "description": "只提取这些后缀的文件，逗号分隔。仅在“开启后缀过滤”时生效。",
+      "description": "仅在开启过滤时生效。用英文逗号分隔。",
       "type": "string",
-      "value": "zip,rar,7z,pdf,mp4,mkv,apk,exe,iso"
+      "value": "zip,rar,7z,pdf,mp4,mkv,apk,exe,iso,png,jpg,js,css"
+    },
+    {
+      "name": "parseNested",
+      "title": "开启深层解析 (顺藤摸瓜)",
+      "description": "开启后，会深入子页面、CSS、JS 内部继续找链接。",
+      "type": "boolean",
+      "value": true
     },
     {
       "name": "useWebView",
-      "title": "使用真实浏览器捕获 (如果手机支持)",
-      "description": "如果你的手机 Gopeed 版本支持 WebView，开启此选项可绕过基础防爬。不支持会自动降级。",
+      "title": "使用真实浏览器捕获 (防反爬)",
+      "description": "如果手机 Gopeed 支持，可开启此项渲染动态网页；不支持会自动降级。",
       "type": "boolean",
       "value": false
     }

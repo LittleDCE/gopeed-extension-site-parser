@@ -1,100 +1,169 @@
 gopeed.events.onResolve(async function (ctx) {
-  const pageUrl = ctx.req.url;
+  const entryUrl = ctx.req.url;
   let baseHostname = "";
-  try { baseHostname = new URL(pageUrl).hostname; } catch(e) { return; }
+  try { baseHostname = new URL(entryUrl).hostname; } catch(e) { return; }
 
   // 读取设置
+  const maxTotalFiles = Number(gopeed.settings.maxTotalFiles) || 100;
+  const filterByExt = gopeed.settings.filterByExt !== false; 
+  const parseNested = gopeed.settings.parseNested === true;
   const useWebView = gopeed.settings.useWebView === true;
-  const filterByExt = gopeed.settings.filterByExt !== false; // 默认开启过滤
-  
+
+  // 格式化后缀
   const formatExts = (str) => (str || "").split(",").map(s => s.trim().toLowerCase().replace(/^\./, "")).filter(Boolean);
-  const targetExts = formatExts(gopeed.settings.targetExts || "zip,rar,7z,pdf,mp4,mkv,apk,exe,iso");
+  const targetExts = formatExts(gopeed.settings.targetExts || "zip,rar,7z,pdf,mp4,mkv,apk,exe,iso,png,jpg,js,css");
+  
+  // 固定的页面后缀，用于判断是否继续爬
+  const pageExts = ["html", "htm", "php", "asp", "aspx", "jsp", "do", "action"];
+  const parsableExts = Array.from(new Set([...pageExts, ...targetExts, "css", "js", "json", "xml", "vue"]));
 
-  let text = "";
-  let useFallbackFetch = false;
-
-  // 1. 环境检测：防止手机端不支持 webview 报错
-  const hasWebView = typeof gopeed.runtime !== 'undefined' && gopeed.runtime.webview;
-
-  // 2. 获取网页源码
-  if (useWebView && hasWebView) {
-    try {
-      const view = await gopeed.runtime.webview.open(pageUrl);
-      text = await view.evaluate(() => document.documentElement.outerHTML);
-      if (view.close) view.close();
-    } catch (e) {
-      useFallbackFetch = true; // WebView 失败，静默降级
-    }
-  } else {
-    useFallbackFetch = true; // 没开 WebView 或手机不支持，直接降级
-  }
-
-  // 3. 降级使用普通请求抓取
-  if (useFallbackFetch) {
-    try {
-      const resp = await fetch(pageUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36" }
-      });
-      if (!resp.ok) throw new MessageError("HTTP " + resp.status);
-      text = await resp.text();
-    } catch (e) {
-      throw new MessageError("请求失败：" + e.message);
-    }
-  }
-
-  // 4. 提取链接并判断
   const files = [];
-  const seen = new Set();
-  const regex = /(?:href|src)\s*=\s*["']([^"']+)["']/gi;
-  let match;
+  const seenFiles = new Set();
+  const visitedNodes = new Set(); 
+  const queue = [entryUrl]; 
 
-  while ((match = regex.exec(text)) !== null) {
-    let link = match[1].trim();
-    if (/^(javascript|mailto|tel|data|blob):/i.test(link) || link.charAt(0) === "#") continue;
+  // 环境检测：防止手机端不支持 webview 报错
+  const hasWebView = typeof gopeed.runtime !== 'undefined' && gopeed.runtime.webview;
+  const fetchWithTimeout = async (url, timeoutMs = 8000) => {
+    return Promise.race([
+      fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36" } }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), timeoutMs))
+    ]);
+  };
+
+  while (queue.length > 0) {
+    // 核心熔断机制：找够文件立马收工
+    if (files.length >= maxTotalFiles) break;
+
+    const currentUrl = queue.shift();
+    if (visitedNodes.has(currentUrl)) continue;
+    visitedNodes.add(currentUrl);
 
     try {
-      const abs = new URL(link, pageUrl).href.split("#")[0];
-      const absObj = new URL(abs);
+      const pathname = new URL(currentUrl).pathname;
+      const lastDot = pathname.lastIndexOf(".");
+      const ext = lastDot !== -1 ? pathname.slice(lastDot + 1).toLowerCase() : "";
       
-      // 限制同源（只抓当前域名下的，不抓跳到外站的）
-      if (absObj.hostname !== baseHostname) continue;
+      const isPage = pageExts.includes(ext) || ext === "";
+      const isParsable = parsableExts.includes(ext);
 
-      const absPath = absObj.pathname;
-      const absLastDot = absPath.lastIndexOf(".");
-      const absExt = absLastDot !== -1 ? absPath.slice(absLastDot + 1).toLowerCase() : "";
+      // 如果需要解析内容
+      if (isPage || (isParsable && parseNested)) {
+        let text = "";
+        let useFallback = false;
 
-      let isMatch = false;
+        // 尝试使用 WebView (如果是网页，且开了开关，且手机支持)
+        if (isPage && useWebView && hasWebView) {
+          try {
+            const view = await gopeed.runtime.webview.open(currentUrl);
+            text = await view.evaluate(() => document.documentElement.outerHTML);
+            if (view.close) view.close();
+          } catch (e) {
+            useFallback = true; // 失败则降级
+          }
+        } else {
+          useFallback = true;
+        }
 
-      if (filterByExt) {
-        // 【模式一：开启过滤】只抓取你设置的后缀
-        if (targetExts.includes(absExt)) {
-          isMatch = true;
+        // 普通 Fetch 请求
+        if (useFallback || !text) {
+          const resp = await fetchWithTimeout(currentUrl, 8000);
+          if (!resp.ok) continue;
+          text = await resp.text();
+        }
+
+        if (text.length > 300000) text = text.substring(0, 300000); 
+
+        let regex;
+        if (isPage || ext === "xml" || ext === "svg") {
+          regex = /(?:href|src)\s*=\s*["']([^"']+)["']/gi;
+        } else if (ext === "css") {
+          regex = /url\s*\(\s*['"]?([^'"\)]+)['"]?\s*\)/gi;
+        } else {
+          regex = /["'`]([^"'`]+\.(?:png|jpg|jpeg|gif|svg|webp|css|js|json|mp4|mp3|woff2?|ttf))["'`]/gi;
+        }
+
+        if (!regex) continue;
+
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+          if (files.length >= maxTotalFiles) break;
+
+          let link = match[1].trim();
+          if (/^(javascript|mailto|tel|data|blob):/i.test(link) || link.charAt(0) === "#") continue;
+
+          try {
+            const abs = new URL(link, currentUrl).href.split("#")[0];
+            const absObj = new URL(abs);
+            
+            if (absObj.hostname !== baseHostname) continue; 
+
+            const absPath = absObj.pathname;
+            const absLastDot = absPath.lastIndexOf(".");
+            const absExt = absLastDot !== -1 ? absPath.slice(absLastDot + 1).toLowerCase() : "";
+            const segments = absPath.split("/");
+            const name = decodeURIComponent(segments[segments.length - 1] || "file");
+
+            // 判断是否要加入下载列表
+            let isMatch = false;
+            if (filterByExt) {
+              if (targetExts.includes(absExt)) isMatch = true;
+            } else {
+              // 全量抓取模式：排除空路径和当前页面自己
+              if (abs !== entryUrl && absPath !== "/" && absExt !== "") isMatch = true;
+            }
+
+            if (isMatch) {
+              if (!seenFiles.has(abs)) {
+                seenFiles.add(abs);
+                files.push({ name: name, req: { url: abs } });
+              }
+            }
+
+            // 判断是否要加入队列继续深层爬取
+            if (!visitedNodes.has(abs)) {
+              const isSubPage = pageExts.includes(absExt) || absExt === "";
+              const isSubAsset = targetExts.includes(absExt) || parsableExts.includes(absExt);
+
+              if (parseNested) {
+                if (isSubPage || isSubAsset) {
+                  // 网页优先插队，资源文件排后面
+                  if (isSubPage) queue.unshift(abs);
+                  else queue.push(abs);
+                }
+              } else if (isSubPage) {
+                queue.push(abs);
+              }
+            }
+          } catch (e) {}
         }
       } else {
-        // 【模式二：关闭过滤】遇到文件就下载（排除掉根目录、空链接、以及当前页面自身）
-        if (abs !== pageUrl && absPath !== "/" && absExt !== "") {
-          isMatch = true;
+        // 不需要读取内容的二进制文件，直接加入列表
+        let isMatch = false;
+        if (filterByExt) {
+          if (targetExts.includes(ext)) isMatch = true;
+        } else {
+          if (currentUrl !== entryUrl && ext !== "") isMatch = true;
         }
-      }
 
-      if (isMatch) {
-        if (!seen.has(abs)) {
-          seen.add(abs);
-          const segments = absPath.split("/");
-          const name = decodeURIComponent(segments[segments.length - 1] || "file");
-          files.push({ name: name, req: { url: abs } });
+        if (isMatch && !seenFiles.has(currentUrl)) {
+           seenFiles.add(currentUrl);
+           const segments = pathname.split("/");
+           const name = decodeURIComponent(segments[segments.length - 1] || "file");
+           files.push({ name: name, req: { url: currentUrl } });
         }
       }
-    } catch (e) {}
+    } catch (err) {
+      continue; 
+    }
   }
 
-  // 5. 返回结果
   if (files.length === 0) {
-    throw new MessageError(filterByExt ? "未找到指定后缀的下载链接。" : "未找到任何同源文件。");
+    throw new MessageError("未找到匹配的文件，可能网页是动态渲染或有防爬限制。");
   }
 
   ctx.res = {
     name: baseHostname || "download-files",
-    files: files.slice(0, 100) // 关闭过滤时可能会抓到很多，限制最多显示 100 个
+    files: files.slice(0, maxTotalFiles) 
   };
 });
