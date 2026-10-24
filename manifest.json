@@ -2,8 +2,8 @@
   "name": "site-file-parser",
   "author": "your-name",
   "title": "网站文件解析",
-  "description": "自动解析网页及子页面中的静态资源文件（支持限制递归深度）",
-  "version": "2.0.0",
+  "description": "自动解析网页及子页面，并可深入解析CSS/JS中引用的资源",
+  "version": "2.1.0",
   "scripts": [
     {
       "event": "onResolve",
@@ -17,16 +17,23 @@
     {
       "name": "maxDepth",
       "title": "最大子页面解析深度",
-      "description": "0代表只解析当前页面；1代表解析当前页面以及它包含的子页面；以此类推。建议填 1 或 2。",
+      "description": "0代表只解析当前页面；1代表解析一层子页面。建议填 1。",
       "type": "number",
       "value": 1
     },
     {
       "name": "maxPages",
-      "title": "最大解析页面总数",
-      "description": "防止网站过大导致任务卡死，建议 50-200。",
+      "title": "最大解析页面/文件总数",
+      "description": "防止解析过多导致卡死，建议 100。",
       "type": "number",
       "value": 100
+    },
+    {
+      "name": "parseNested",
+      "title": "深度解析 (解析 CSS/JS 中的资源)",
+      "description": "开启后，会自动下载并读取 CSS/JS 文件，提取里面引用的图片、字体等。此操作会大幅增加解析时间。",
+      "type": "boolean",
+      "value": true
     }
   ]
 }
