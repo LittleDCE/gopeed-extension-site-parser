@@ -2,10 +2,12 @@
   "name": "site-file-parser",
   "author": "your-name",
   "title": "网站文件深度解析",
-  "description": "自动解析网页、子页面以及CSS/JS中嵌套引用的所有静态资源",
-  "version": "3.1.0",
-  "homepage": "https://github.com/LittleDCE/gopeed-extension-site-parser",
-  "repository": {"url":"https://github.com/LittleDCE/gopeed-extension-site-parser"},
+  "description": "自动解析网页及其内部引用的所有静态资源，达到上限自动停止",
+  "version": "4.0.0",
+  "homepage": "https://github.com/你的用户名/你的仓库名",
+  "repository": {
+    "url": "https://github.com/你的用户名/你的仓库名"
+  },
   "scripts": [
     {
       "event": "onResolve",
@@ -17,16 +19,9 @@
   ],
   "settings": [
     {
-      "name": "maxParseDepth",
-      "title": "最大嵌套解析深度",
-      "description": "0=只看当前页；1=看子页面/内部引用的第一层；建议填 1 或 2。填 100 会超时！",
-      "type": "number",
-      "value": 2
-    },
-    {
-      "name": "maxRequests",
-      "title": "最大网络请求次数",
-      "description": "防止手机卡死，达到上限会自动停止并返回结果。建议 50-200。",
+      "name": "maxTotalFiles",
+      "title": "最大解析文件数量",
+      "description": "这是总数限制。找够这么多文件就自动停止，防止手机卡死。建议填 50-200。",
       "type": "number",
       "value": 100
     },
@@ -40,9 +35,9 @@
     {
       "name": "targetExts",
       "title": "深层解析（文件后缀）",
-      "description": "用英文逗号分隔。这些会被当文件，如果开启深层，会读取 css/js/json 等找内部资源。",
+      "description": "用英文逗号分隔。这些会被当文件，并读取 css/js/json 等找内部资源。",
       "type": "string",
-      "value": "css,js,json,xml,vue,png,jpg,jpeg,gif,svg,webp,mp4,mp3"
+      "value": "css,js,json,xml,vue,png,jpg,jpeg,gif,svg,webp,mp4,mp3,zip,pdf"
     },
     {
       "name": "parseNested",
