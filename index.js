@@ -1,73 +1,93 @@
 gopeed.events.onResolve(async function (ctx) {
-  const pageUrl = ctx.req.url;
+  const entryUrl = ctx.req.url;
+  const baseHostname = new URL(entryUrl).hostname; // 获取主域名，防止爬到外站去
+  
+  // 读取用户配置的深度，默认 1
+  const maxDepth = gopeed.settings.maxDepth !== undefined ? Number(gopeed.settings.maxDepth) : 1;
+  const maxPages = gopeed.settings.maxPages !== undefined ? Number(gopeed.settings.maxPages) : 100;
+  
+  // 允许下载的文件后缀
+  const targetExts = ["html", "htm", "php", "png", "jpg", "jpeg", "gif", "svg", "webp", "js", "css", "json", "xml", "pdf", "zip", "rar", "7z", "txt"];
 
-  try {
-    // 1. 尝试抓取网页
-    const resp = await fetch(pageUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
-    });
+  const files = [];
+  const seenFiles = new Set(); // 文件去重
+  const visitedPages = new Set(); // 页面去重
+  const queue = [{ url: entryUrl, depth: 0 }]; // 爬取队列
+  
+  let pageCount = 0;
 
-    if (!resp.ok) {
-      // 如果状态码不对，直接把状态码弹出来
-      return showDebug(ctx, "HTTP错误_" + resp.status, pageUrl);
-    }
+  // 开始广度优先爬取
+  while (queue.length > 0 && pageCount < maxPages) {
+    const current = queue.shift();
+    const pageUrl = current.url;
+    const depth = current.depth;
 
-    const html = await resp.text();
+    if (visitedPages.has(pageUrl)) continue;
+    visitedPages.add(pageUrl);
+    pageCount++;
 
-    // 2. 用正则提取链接
-    const regex = /(?:href|src)\s*=\s*["']([^"']+)["']/gi;
-    let match;
-    const files = [];
-    const seen = new Set();
-
-    while ((match = regex.exec(html)) !== null) {
-      let link = match[1].trim();
-      if (/^(javascript|mailto|tel|data|blob):/i.test(link) || link.charAt(0) === "#") continue;
-
-      try {
-        const abs = new URL(link, pageUrl).href.split("#")[0];
-        if (!seen.has(abs)) {
-          seen.add(abs);
-          const segments = new URL(abs).pathname.split("/");
-          let name = decodeURIComponent(segments[segments.length - 1] || "file");
-          files.push({
-            name: name,
-            req: { url: abs }
-          });
+    try {
+      const resp = await fetch(pageUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-      } catch (e) {}
+      });
+
+      if (!resp.ok) continue;
+      const html = await resp.text();
+
+      const regex = /(?:href|src)\s*=\s*["']([^"']+)["']/gi;
+      let match;
+
+      while ((match = regex.exec(html)) !== null) {
+        let link = match[1].trim();
+        if (/^(javascript|mailto|tel|data|blob):/i.test(link) || link.charAt(0) === "#") continue;
+
+        try {
+          const abs = new URL(link, pageUrl).href.split("#")[0];
+          const absObj = new URL(abs);
+          
+          // 同源限制：绝对不能爬出当前网站
+          if (absObj.hostname !== baseHostname) continue;
+
+          const pathname = absObj.pathname;
+          const lastDot = pathname.lastIndexOf(".");
+          const ext = lastDot !== -1 ? pathname.slice(lastDot + 1).toLowerCase() : "";
+          const segments = pathname.split("/");
+          const name = decodeURIComponent(segments[segments.length - 1] || "file");
+
+          // 1. 如果是我们需要的目标文件，直接收集
+          if (targetExts.includes(ext)) {
+            if (!seenFiles.has(abs)) {
+              seenFiles.add(abs);
+              files.push({
+                name: name,
+                req: { url: abs }
+              });
+            }
+          } 
+          // 2. 如果是 HTML/PHP 或者是无后缀的路径（如 /about），视为子页面
+          else if (["html", "htm", "php", "asp", "aspx", "jsp"].includes(ext) || ext === "") {
+            // 只有在深度未超过限制时，才加入队列
+            if (depth < maxDepth) {
+              queue.push({ url: abs, depth: depth + 1 });
+            }
+          }
+        } catch (e) {}
+      }
+    } catch (err) {
+      // 单个页面抓取失败不影响整体，继续下一个
+      continue; 
     }
-
-    // 3. 核心调试逻辑：如果没找到文件，就把网页源码的开头变成文件名显示出来！
-    if (files.length === 0) {
-      // 提取 html 的前 30 个字符，去掉换行和特殊符号
-      let preview = html.substring(0, 30).replace(/[\r\n\t\s<>]/g, "_");
-      if (!preview) preview = "空内容";
-      
-      return showDebug(ctx, "没提取到文件_预览_" + preview, pageUrl);
-    }
-
-    // 4. 成功提取到文件
-    ctx.res = {
-      name: new URL(pageUrl).hostname || "site-files",
-      files: files.slice(0, 200) // 最多显示200个，防止卡死
-    };
-
-  } catch (err) {
-    // 如果是网络错误、超时等
-    return showDebug(ctx, "解析异常_" + err.message, pageUrl);
   }
-});
 
-// 辅助函数：用来把调试信息直接显示在 Gopeed 的界面上
-function showDebug(ctx, msg, url) {
-  // 把错误信息当作文件名返回，让你在弹窗里能直接看到
+  if (files.length === 0) {
+    throw new MessageError("未找到匹配的静态文件，请检查网页是否为空或是否为动态渲染。");
+  }
+
+  // 返回最终结果
   ctx.res = {
-    name: "【调试信息】",
-    files: [
-      { name: msg.substring(0, 50) + ".txt", req: { url: url } }
-    ]
+    name: baseHostname || "site-files",
+    files: files.slice(0, 1000) // 最终列表最多返回 1000 个文件防卡顿
   };
-}
+});

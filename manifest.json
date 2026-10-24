@@ -1,41 +1,32 @@
 {
   "name": "site-file-parser",
   "author": "your-name",
-  "title": "网站文件解析（含子页面）",
-  "version": "1.1.0",
+  "title": "网站文件解析",
+  "description": "自动解析网页及子页面中的静态资源文件（支持限制递归深度）",
+  "version": "2.0.0",
   "scripts": [
     {
       "event": "onResolve",
-      "match": { "urls": ["*://*/*"] },
+      "match": {
+        "urls": ["*://*/*"]
+      },
       "entry": "index.js"
     }
   ],
   "settings": [
     {
-      "name": "allowedHosts",
-      "title": "允许递归解析的网站域名",
-      "description": "域名白名单，逗号分隔，例如：example.com,blog.example.com。留空则只解析入口页面，不递归子页面。",
-      "type": "string",
-      "value": ""
-    },
-    {
-      "name": "extensions",
-      "title": "要匹配的文件扩展名",
-      "type": "string",
-      "value": "html,htm,php,png,jpg,jpeg,gif,svg,webp,js,css,json,xml,pdf,zip,rar,7z,txt"
+      "name": "maxDepth",
+      "title": "最大子页面解析深度",
+      "description": "0代表只解析当前页面；1代表解析当前页面以及它包含的子页面；以此类推。建议填 1 或 2。",
+      "type": "number",
+      "value": 1
     },
     {
       "name": "maxPages",
-      "title": "最大递归页面数",
-      "description": "防止网站过大导致卡顿，建议 50-200",
+      "title": "最大解析页面总数",
+      "description": "防止网站过大导致任务卡死，建议 50-200。",
       "type": "number",
       "value": 100
-    },
-    {
-      "name": "maxFiles",
-      "title": "最大文件数量",
-      "type": "number",
-      "value": 500
     }
   ]
 }
