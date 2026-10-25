@@ -29,12 +29,37 @@ gopeed.events.onResolve(async function (ctx) {
     ]);
   };
 
-  // 🚨 极限纯净提取：毫无任何替换逻辑！
-  const getRelativePath = (urlObj) => {
-    let path = decodeURIComponent(urlObj.pathname); 
-    if (path.startsWith("/")) path = path.substring(1); 
-    if (!path || path.endsWith("/")) path += "index.html"; 
-    return path; // 原封不动，带什么斜杠就是什么斜杠
+  // 🌟 核心修改：不经过 new URL 对象，直接用字符串切！
+  const extractPathFromUrlString = (urlString) => {
+    // 去掉 http:// 或 https://
+    let noProtocol = urlString.replace(/^https?:\/\//i, "");
+    // 找到第一个斜杠的位置，斜杠后面的就是路径
+    let firstSlashIndex = noProtocol.indexOf("/");
+    
+    if (firstSlashIndex === -1) {
+        return "index.html"; // 如果连斜杠都没有，默认首页
+    }
+
+    // 拿到斜杠后面的路径，比如 assets/logo/xxx.png
+    let path = noProtocol.substring(firstSlashIndex + 1);
+    
+    // 去掉问号后面的参数
+    let qIndex = path.indexOf("?");
+    if (qIndex !== -1) path = path.substring(0, qIndex);
+    
+    // 去掉井号后面的锚点
+    let hIndex = path.indexOf("#");
+    if (hIndex !== -1) path = path.substring(0, hIndex);
+
+    if (!path) return "index.html";
+
+    // 解码中文（把 %E5%8E%A8 变成 厨）
+    try { path = decodeURIComponent(path); } catch(e) {}
+
+    // 如果最后是斜杠，补个 index.html
+    if (path.endsWith("/")) path += "index.html";
+
+    return path; // 直接返回！没有任何替换！
   };
 
   while (queue.length > 0) {
@@ -111,7 +136,8 @@ gopeed.events.onResolve(async function (ctx) {
             if (isMatch) {
               if (!seenFiles.has(abs)) {
                 seenFiles.add(abs);
-                const filePath = getRelativePath(absObj);
+                // 使用纯字符串截取！
+                const filePath = extractPathFromUrlString(abs);
                 files.push({ name: filePath, req: { url: abs } });
               }
             }
@@ -141,7 +167,7 @@ gopeed.events.onResolve(async function (ctx) {
 
         if (isMatch && !seenFiles.has(currentUrl)) {
            seenFiles.add(currentUrl);
-           const filePath = getRelativePath(currentUrlObj);
+           const filePath = extractPathFromUrlString(currentUrl);
            files.push({ name: filePath, req: { url: currentUrl } });
         }
       }
